@@ -1,0 +1,158 @@
+/* Per ogni id_cliente nella tabella cliente calcolare
+- Età
+- Numero di transazioni in uscita su tutti i conti
+- Numero di transazioni in entrata su tutti i conti
+- Importo transato in uscita su tutti i conti
+- Importo transato in entrata su tutti i conti
+- Numero totale di conti posseduti
+- Numero di conti posseduti per tipologia (un indicatore per tipo)
+- Numero di transazioni in uscita per tipologia (un indicatore per tipo)
+- Numero di transazioni in entrata per tipologia (un indicatore per tipo)
+- Importo transato in uscita per tipologia di conto (un indicatore per tipo)
+- Importo transato in entrata per tipologia di conto (un indicatore per tipo)
+*/
+USE banca;
+CREATE TABLE Analisi_clienti AS
+SELECT DISTINCT cli.*,
+                Year(CURRENT_DATE()) - Year(cli.data_nascita) AS eta,
+                Count(
+                CASE
+                                WHEN tptrans.segno = '-' THEN trans.importo
+                                ELSE NULL
+                END) AS n_uscite,
+                Count(
+                CASE
+                                WHEN tptrans.segno = '+' THEN trans.importo
+                                ELSE NULL
+                END) AS n_entrate,
+                Sum(
+                CASE
+                                WHEN tptrans.segno = '-' THEN trans.importo
+                                ELSE 0
+                END) AS imp_uscite,
+                Sum(
+                CASE
+                                WHEN tptrans.segno = '+' THEN trans.importo
+                                ELSE 0
+                END) AS imp_entrate,
+                count(DISTINCT
+                CASE
+                                WHEN tpconto.id_tipo_conto = 0 THEN cont.id_conto
+                                ELSE NULL
+                END) n_conti_base,
+                count(DISTINCT
+                CASE
+                                WHEN tpconto.id_tipo_conto = 1 THEN cont.id_conto
+                                ELSE NULL
+                END) n_conti_business,
+                count(DISTINCT
+                CASE
+                                WHEN tpconto.id_tipo_conto = 2 THEN cont.id_conto
+                                ELSE NULL
+                END) n_conti_privati,
+                count(DISTINCT
+                CASE
+                                WHEN tpconto.id_tipo_conto = 3 THEN cont.id_conto
+                                ELSE NULL
+                END)    n_conti_famiglie,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 3 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_acquisti_amazon,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 4 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_rata_mutuo,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 5 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_hotel,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 6 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_biglietti_aerei,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 7 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_supermercati,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 0 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_stipendio,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 1 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_pensione,
+                count(DISTINCT
+                CASE
+								WHEN trans.id_tipo_trans = 2 THEN trans.importo
+                                ELSE NULL
+				END) n_transazioni_dividendi,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 0 and tptrans.segno = '-' THEN trans.importo
+                                ELSE 0
+				END) imp_uscita_conto_base,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 1 and tptrans.segno = '-' THEN trans.importo
+                                ELSE 0
+				END) imp_uscita_conto_business,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 2 and tptrans.segno = '-' THEN trans.importo
+                                ELSE 0
+				END) imp_uscita_conto_privati,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 3 and tptrans.segno = '-' THEN trans.importo
+                                ELSE 0
+				END) imp_uscita_conto_famiglie,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 0 and tptrans.segno = '+' THEN trans.importo
+                                ELSE 0
+				END) imp_entrata_conto_base,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 1 and tptrans.segno = '+' THEN trans.importo
+                                ELSE 0
+				END) imp_entrata_conto_business,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 2 and tptrans.segno = '+' THEN trans.importo
+                                ELSE 0
+				END) imp_entrata_conto_privati,
+                sum(DISTINCT
+                CASE
+								WHEN tpconto.id_tipo_conto = 3 and tptrans.segno = '+' THEN trans.importo
+                                ELSE 0
+				END) imp_entrata_conto_famiglie
+FROM            cliente AS cli
+LEFT JOIN            conto   AS cont
+ON              cli.id_cliente = cont.id_cliente
+LEFT JOIN            transazioni AS trans
+ON              cont.id_conto = trans.id_conto
+LEFT JOIN       tipo_transazione AS tptrans
+ON              trans.id_tipo_trans = tptrans.id_tipo_transazione
+LEFT JOIN
+                (
+                         SELECT   id_cliente,
+                                  count(*) AS n_conti
+                         FROM     conto
+                         GROUP BY id_cliente) AS cont_conti
+ON              cli.id_cliente = cont_conti.id_cliente
+LEFT JOIN 			tipo_conto as tpconto
+ON				tpconto.id_tipo_conto = cont.id_tipo_conto
+GROUP BY        1,
+                2,
+                3,
+                4
+ORDER BY        id_cliente;
